@@ -250,3 +250,93 @@ class ErosionP4(tf.keras.layers.Layer):
             'dilation_rate': self.rates,
         })
         return config
+    
+
+
+class Dilation3Dxy(tf.keras.layers.Layer):
+    '''
+     Dilation 3D Layer: Dilation for now assuming channel last
+    '''
+    def __init__(self, filters, kernel_size,strides=(1, 1),padding='same', dilation_rate=(1,1), kernel_initializer='RandomUniform',
+    kernel_constraint=None,kernel_regularization=None, **kwargs):
+        super(Dilation3Dxy, self).__init__(**kwargs)
+        self.kernel_size = kernel_size
+        self.num_filters= filters
+        self.strides = strides
+        self.padding = padding
+        self.rates=dilation_rate
+        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
+        self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
+        self.kernel_regularization = tf.keras.regularizers.get(kernel_regularization)
+        # for we are assuming channel last
+        self.channel_axis = -1
+
+    def build(self, input_shape):
+        if input_shape[self.channel_axis] is None:
+            raise ValueError('The channel dimension of the inputs '
+                             'should be defined. Found `None`.')
+
+        input_dim = input_shape[self.channel_axis]
+        kernel_shape = self.kernel_size + (input_dim,self.num_filters)
+        self.kernel = self.add_weight(shape=kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',constraint =self.kernel_constraint,regularizer=self.kernel_regularization)
+        super(Dilation3Dxy, self).build(input_shape)
+
+
+    def call(self,x):
+        #print('x.shape',x.shape)
+        #print('self.kernel.shape',self.kernel.shape)
+        tile=tf.reshape(x,[tf.shape(x)[0],tf.shape(x)[1],tf.shape(x)[2]*tf.shape(x)[3],tf.shape(x)[4]])
+        #print('tile.shape',tile.shape)
+        res=[]
+        for i in range(self.num_filters):
+            res.append(dilation2d(tile, self.kernel[..., i],self.strides, self.padding))
+        res=tf.stack(res,axis=-1)
+        #print('res.shape',res.shape)
+        res=tf.reshape(res,[tf.shape(res)[0],tf.shape(res)[1],tf.shape(x)[2],tf.shape(x)[3],tf.shape(res)[3]*tf.shape(res)[4]])
+        return res
+    
+class Dilation3Dyz(tf.keras.layers.Layer):
+    '''
+     Dilation 3D Layer: Dilation for now assuming channel last
+    '''
+    def __init__(self, filters, kernel_size,strides=(1, 1),padding='same', dilation_rate=(1,1), kernel_initializer='RandomUniform',
+    kernel_constraint=None,kernel_regularization=None, **kwargs):
+        super(Dilation3Dyz, self).__init__(**kwargs)
+        self.kernel_size = kernel_size
+        self.num_filters= filters
+        self.strides = strides
+        self.padding = padding
+        self.rates=dilation_rate
+        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
+        self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
+        self.kernel_regularization = tf.keras.regularizers.get(kernel_regularization)
+        # for we are assuming channel last
+        self.channel_axis = -1
+
+    def build(self, input_shape):
+        if input_shape[self.channel_axis] is None:
+            raise ValueError('The channel dimension of the inputs '
+                             'should be defined. Found `None`.')
+
+        input_dim = input_shape[self.channel_axis]
+        kernel_shape = self.kernel_size + (input_dim,self.num_filters)
+        self.kernel = self.add_weight(shape=kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',constraint =self.kernel_constraint,regularizer=self.kernel_regularization)
+        super(Dilation3Dyz, self).build(input_shape)
+
+
+    def call(self,x):
+        #print('x.shape',x.shape)
+        #print('self.kernel.shape',self.kernel.shape)
+        tile=tf.reshape(x,[tf.shape(x)[0],tf.shape(x)[1]*tf.shape(x)[2],tf.shape(x)[3],tf.shape(x)[4]])
+        #print('tile.shape',tile.shape)
+        res=[]
+        for i in range(self.num_filters):
+            res.append(dilation2d(tile, self.kernel[..., i],self.strides, self.padding))
+        res=tf.stack(res,axis=-1)
+        #print('res.shape',res.shape)
+        res=tf.reshape(res,[tf.shape(res)[0],tf.shape(x)[1],tf.shape(x)[2],tf.shape(res)[2],tf.shape(res)[3]*tf.shape(res)[4]])
+        return res
