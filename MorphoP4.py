@@ -372,7 +372,7 @@ class ConvP4(tf.keras.layers.Layer):
 
             for k in range(3):
 
-                res_depth.append(tf.nn.conv2d(y[:,j+k,...], kernel_rot, (1, ) + self.strides + (1, ) , self.padding.upper(), "NHWC", self.rates))
+                res_depth.append(tf.nn.conv2d(y[:,j+k,...], kernel_rot[...,k, :,:], (1, ) + self.strides + (1, ) , self.padding.upper(), "NHWC", self.rates))
 
             res_depth = tf.stack(res_depth, axis=-1)
             res_depth = tf.reduce_max(res_depth, axis = -1)
