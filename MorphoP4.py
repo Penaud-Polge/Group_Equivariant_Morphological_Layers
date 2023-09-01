@@ -36,7 +36,90 @@ def erosion2d(x, st_element, strides, padding,rates=(1, 1)):
     x = tf.nn.erosion2d(x, st_element, (1, ) + strides + (1, ),padding.upper(),"NHWC",(1,)+rates+(1,))
     return x
 
+class ConvLiftingP4(tf.keras.layers.Layer):
 
+    def __init__(self, num_filters, kernel_size, strides=(1, 1),
+                 padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
+                 kernel_constraint=None,kernel_regularization=None,bias_initializer='zeros',bias_regularizer=None,
+                 bias_constraint=None,**kwargs):
+        
+        super(ConvLiftingP4, self).__init__(**kwargs)
+
+        self.num_filters = num_filters
+        self.kernel_size = kernel_size
+        self.strides = strides
+        self.padding = padding
+        self.rates=dilation_rate
+
+        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
+        self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
+        self.kernel_regularization = tf.keras.regularizers.get(kernel_regularization)
+
+        # for we are assuming channel last
+        self.channel_axis = -1
+
+        self.bias_initializer = tf.keras.initializers.get(bias_initializer)
+        self.bias_regularizer = tf.keras.regularizers.get(bias_regularizer)
+        self.bias_constraint = tf.keras.constraints.get(bias_constraint)
+        self.activation = activations.get(activation)
+        self.use_bias = use_bias
+
+    def build(self, input_shape):
+        if input_shape[self.channel_axis] is None:
+            raise ValueError('The channel dimension of the inputs '
+                             'should be defined. Found `None`.')
+        
+        input_dim = input_shape[self.channel_axis]
+        kernel_shape = self.kernel_size + (input_dim, self.num_filters)
+
+        self.kernel = self.add_weight(shape=kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',constraint =self.kernel_constraint,regularizer=self.kernel_regularization)
+
+        if self.use_bias:
+            self.bias = self.add_weight(
+                name='bias',
+                shape=(self.num_filters,),
+                initializer=self.bias_initializer,
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint,
+                trainable=True,
+                dtype=self.dtype)
+        else:
+            self.bias = None
+        # Be sure to call this at the end
+        super(ConvLiftingP4, self).build(input_shape)
+
+    def call(self, x):
+
+        output = []
+
+        for i in range(4):
+
+            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
+
+            output.append(tf.nn.conv2d(x, kernel_rot, (1, ) + self.strides + (1, ) , self.padding.upper(), "NHWC", self.rates))
+
+        output = tf.stack(output, axis= 1)
+        if self.use_bias:
+            output=tf.keras.backend.bias_add(output, self.bias)
+        
+        if self.activation is not None:
+            return self.activation(output)
+        
+        return output
+    
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'num_filters': self.num_filters,
+            'kernel_size': self.kernel_size,
+            'strides': self.strides,
+            'padding': self.padding,
+            'dilation_rate': self.rates,
+        })
+        return config
+       
 class DilationLiftingP4(tf.keras.layers.Layer):
 
     def __init__(self, num_filters, kernel_size, strides=(1, 1),
@@ -106,7 +189,14 @@ class DilationLiftingP4(tf.keras.layers.Layer):
 
             output.append(tf.stack(res_filters, axis = -1))
 
-        return(tf.stack(output, axis=1))
+        output = tf.stack(output, axis= 1)
+        if self.use_bias:
+            output=tf.keras.backend.bias_add(output, self.bias)
+        
+        if self.activation is not None:
+            return self.activation(output)
+        
+        return output
     
     def get_config(self):
         config = super().get_config().copy()
@@ -187,7 +277,15 @@ class ErosionLiftingP4(tf.keras.layers.Layer):
 
             output.append(tf.stack(res_filters, axis = -1))
 
-        return(tf.stack(output, axis=1))
+        output = tf.stack(output, axis= 1)
+        if self.use_bias:
+            output=tf.keras.backend.bias_add(output, self.bias)
+        
+        if self.activation is not None:
+            return self.activation(output)
+        
+        return output
+        
     
     def get_config(self):
         config = super().get_config().copy()
@@ -199,6 +297,108 @@ class ErosionLiftingP4(tf.keras.layers.Layer):
             'dilation_rate': self.rates,
         })
         return config
+    
+
+class ConvP4(tf.keras.layers.Layer):
+
+    def __init__(self, num_filters, kernel_size, strides=(1, 1),
+                 padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
+                 kernel_constraint=None,kernel_regularization=None,bias_initializer='zeros',bias_regularizer=None,
+                 bias_constraint=None,**kwargs):
+        
+        super(ConvP4, self).__init__(**kwargs)
+
+        self.num_filters = num_filters
+        self.kernel_size = kernel_size
+        self.strides = strides
+        self.padding = padding
+        self.rates=dilation_rate
+
+        self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
+        self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
+        self.kernel_regularization = tf.keras.regularizers.get(kernel_regularization)
+
+        # for we are assuming channel last
+        self.channel_axis = -1
+
+        self.bias_initializer = tf.keras.initializers.get(bias_initializer)
+        self.bias_regularizer = tf.keras.regularizers.get(bias_regularizer)
+        self.bias_constraint = tf.keras.constraints.get(bias_constraint)
+        self.activation = activations.get(activation)
+        self.use_bias = use_bias
+
+    def build(self, input_shape):
+        if input_shape[self.channel_axis] is None:
+            raise ValueError('The channel dimension of the inputs '
+                             'should be defined. Found `None`.')
+
+        input_dim = input_shape[self.channel_axis]
+
+        kernel_shape = self.kernel_size + (3, input_dim, self.num_filters)
+
+        self.kernel = self.add_weight(shape=kernel_shape,
+                                      initializer=self.kernel_initializer,
+                                      name='kernel',constraint =self.kernel_constraint,regularizer=self.kernel_regularization)
+
+        
+        
+        if self.use_bias:
+            self.bias = self.add_weight(
+                name='bias',
+                shape=(self.num_filters,),
+                initializer=self.bias_initializer,
+                regularizer=self.bias_regularizer,
+                constraint=self.bias_constraint,
+                trainable=True,
+                dtype=self.dtype)
+        else:
+            self.bias = None
+        # Be sure to call this at the end
+        super(ConvP4, self).build(input_shape)
+    
+
+    def call(self, x):
+
+
+        y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
+
+        res_rota = []
+
+        for j in range(4):
+
+            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+
+            res_depth = []
+
+            for k in range(3):
+
+                res_depth.append(tf.nn.conv2d(y[:,j+k,...], kernel_rot, (1, ) + self.strides + (1, ) , self.padding.upper(), "NHWC", self.rates))
+
+            res_depth = tf.stack(res_depth, axis=-1)
+            res_depth = tf.reduce_max(res_depth, axis = -1)
+
+            res_rota.append(res_depth)
+
+        output = tf.stack(res_rota, axis= 1)
+        if self.use_bias:
+            output=tf.keras.backend.bias_add(output, self.bias)
+        
+        if self.activation is not None:
+            return self.activation(output)
+        
+        return output
+    
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({
+            'num_filters': self.num_filters,
+            'kernel_size': self.kernel_size,
+            'strides': self.strides,
+            'padding': self.padding,
+            'dilation_rate': self.rates,
+        })
+        return config
+
 
 class DilationP4(tf.keras.layers.Layer):
 
