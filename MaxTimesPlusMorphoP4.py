@@ -32,7 +32,7 @@ def erosion2d(x, st_element, strides, padding,rates=(1, 1)):
     x = tf.nn.erosion2d(x, st_element, (1, ) + strides + (1, ),padding.upper(),"NHWC",(1,)+rates+(1,))
     return x
 
-class MaxTimesPlusDilationLiftingP4():
+class MaxTimesPlusDilationLiftingP4(tf.keras.layers.Layer):
 
     def __init__(self, num_filters, kernel_size, strides=(1, 1),
                  padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
@@ -110,7 +110,7 @@ class MaxTimesPlusDilationLiftingP4():
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
 
             res_rot = tf.add(tf.multiply(y, timesKernel_rot), kernel_rot)
-            res.append(tf.recude_sum(tf.reduce_max(res_rot, axis = -3), axis = -2))
+            res.append(tf.reduce_sum(tf.reduce_max(res_rot, axis = -3), axis = -2))
         
         output = tf.stack(res, axis = 1)
 
@@ -136,7 +136,7 @@ class MaxTimesPlusDilationLiftingP4():
         return config
 
             
-class MaxTimesPlusErosionLiftingP4():
+class MaxTimesPlusErosionLiftingP4(tf.keras.layers.Layer):
 
     def __init__(self, num_filters, kernel_size, strides=(1, 1),
                  padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
@@ -214,7 +214,7 @@ class MaxTimesPlusErosionLiftingP4():
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
 
             res_rot = tf.add(tf.divide(y, timesKernel_rot + tf.keras.backend.epsilon()), - kernel_rot)
-            res.append(tf.recude_sum(tf.reduce_min(res_rot, axis = -3), axis = -2))
+            res.append(tf.reduce_sum(tf.reduce_min(res_rot, axis = -3), axis = -2))
         
         output = tf.stack(res, axis = 1)
 
@@ -239,7 +239,7 @@ class MaxTimesPlusErosionLiftingP4():
         })
         return config
 
-class MaxTimesPlusDilationP4():
+class MaxTimesPlusDilationP4(tf.keras.layers.Layer):
 
     def __init__(self, num_filters, kernel_size, strides=(1, 1),
                  padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
@@ -302,7 +302,7 @@ class MaxTimesPlusDilationP4():
     def call(self, x):
 
         y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
-        y = tf.image.extract_patches(y, sizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,), rates=(1, 1) + self.rates + (1,), padding=self.padding.upper())
+        y = tf.extract_volume_patches(y, ksizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,),  padding=self.padding.upper())
             
         y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], y.shape[3], self.kernel_size[0]*self.kernel_size[1], x.shape[4]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, 1, self.num_filters])
@@ -320,7 +320,7 @@ class MaxTimesPlusDilationP4():
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3], self.timesKernel.shape[4]))
 
             res_rot = tf.add(tf.multiply(y[...,i:i+3,:,:], timesKernel_rot), kernel_rot)
-            res.append(tf.recude_sum(tf.reduce_max(res_rot, axis = (-4, -3)), axis = -2))
+            res.append(tf.reduce_sum(tf.reduce_max(res_rot, axis = (-4, -3)), axis = -2))
         
         output = tf.stack(res, axis = 1)
 
@@ -345,7 +345,7 @@ class MaxTimesPlusDilationP4():
         })
         return config
 
-class MaxTimesPlusErosionP4():
+class MaxTimesPlusErosionP4(tf.keras.layers.Layer):
 
     def __init__(self, num_filters, kernel_size, strides=(1, 1),
                  padding='same', dilation_rate=(1,1), activation=None,use_bias=False,kernel_initializer='Zeros',
@@ -408,7 +408,7 @@ class MaxTimesPlusErosionP4():
     def call(self, x):
 
         y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
-        y = tf.image.extract_patches(y, sizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,), rates=(1, 1) + self.rates + (1,), padding=self.padding.upper())
+        y = tf.extract_volume_patches(y, ksizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,), padding=self.padding.upper())
             
         y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], y.shape[3], self.kernel_size[0]*self.kernel_size[1], x.shape[4]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, 1, self.num_filters])
@@ -426,7 +426,7 @@ class MaxTimesPlusErosionP4():
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3], self.timesKernel.shape[4]))
 
             res_rot = tf.add(tf.divide(y[...,i:i+3,:,:], timesKernel_rot + tf.keras.backend.epsilon()), -kernel_rot)
-            res.append(tf.recude_sum(tf.reduce_min(res_rot, axis = (-4, -3)), axis = -2))
+            res.append(tf.reduce_sum(tf.reduce_min(res_rot, axis = (-4, -3)), axis = -2))
         
         output = tf.stack(res, axis = 1)
 
