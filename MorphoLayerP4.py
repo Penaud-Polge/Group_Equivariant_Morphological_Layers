@@ -563,7 +563,7 @@ class ClosingLiftingP4(tf.keras.layers.Layer):
             res_filters = []
             for j in range(self.num_filters):
 
-                dil = erosion2d(x, kernel_rot[...,j], strides = (1,1), padding = self.padding)
+                dil = dilation2d(x, kernel_rot[...,j], strides = (1,1), padding = self.padding)
 
                 res_filters.append(tf.reduce_sum(erosion2d(dil, kernel_rot[...,j], self.strides, self.padding),axis=-1))
 
@@ -1452,7 +1452,7 @@ class scalarMaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
             
             for j in range(self.num_filters):
 
-                dil = dilation2d(tf.math.multiply(x,self.timesKernel[:,j]), kernel_rot[...,j], strides = (1, 1), pading = self.padding)
+                dil = dilation2d(tf.math.multiply(x,self.timesKernel[:,j]), kernel_rot[...,j], strides = (1, 1), padding = self.padding)
 
                 res_filters.append(tf.reduce_sum(erosion2d(tf.math.divide(dil, self.timesKernel[:,j] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[...,j], self.timesKernel[:,j] + tf.keras.backend.epsilon()), self.strides, self.padding),axis=-1))
 
@@ -2066,7 +2066,7 @@ class MaxTimesPlusDilationLiftingP4(tf.keras.layers.Layer):
 
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
-        y = tf.reshape(y, shape = (-1, x.shape[1], x.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
+        y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, self.num_filters])
 
         res = []
@@ -2168,7 +2168,7 @@ class MaxTimesPlusErosionLiftingP4(tf.keras.layers.Layer):
 
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
-        y = tf.reshape(y, shape = (-1, x.shape[1], x.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
+        y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, self.num_filters])
 
         res = []
@@ -2269,7 +2269,7 @@ class MaxTimesPlusOpeningLiftingP4(tf.keras.layers.Layer):
 
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1, 1, 1, 1), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
-        y = tf.reshape(y, shape = (-1, x.shape[1], x.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
+        y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, self.num_filters])
 
         res = []
@@ -2289,7 +2289,7 @@ class MaxTimesPlusOpeningLiftingP4(tf.keras.layers.Layer):
             for k in range(self.num_filters):
 
                 ero_patch = tf.image.extract_patches(ero_rot[..., k], sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
-                ero_patch = tf.reshape(ero_patch, shape= (-1, ero_rot.shape[1], ero_rot.shape[2], self.kernel_size[0]*self.kernel_size[1], ero_rot.shape[3]))
+                ero_patch = tf.reshape(ero_patch, shape= (-1, ero_patch.shape[1], ero_patch.shape[2], self.kernel_size[0]*self.kernel_size[1], ero_rot.shape[3]))
                 ero_patched.append(ero_patch)
 
             ero_patched = tf.stack(ero_patched, axis = -1)
@@ -2382,7 +2382,7 @@ class MaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
 
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
-        y = tf.reshape(y, shape = (-1, x.shape[1], x.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
+        y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
         y = tf.tile(tf.expand_dims(y, axis = -1), [1, 1, 1, 1, 1, self.num_filters])
 
         res = []
@@ -2402,7 +2402,7 @@ class MaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
             for k in range(self.num_filters):
 
                 dil_patch = tf.image.extract_patches(dil_rot[..., k], sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
-                dil_patch = tf.reshape(dil_patch, shape= (-1, dil_rot.shape[1], dil_rot.shape[2], self.kernel_size[0]*self.kernel_size[1], dil_rot.shape[3]))
+                dil_patch = tf.reshape(dil_patch, shape= (-1, dil_patch.shape[1], dil_patch.shape[2], self.kernel_size[0]*self.kernel_size[1], dil_rot.shape[3]))
                 dil_patched.append(dil_patch)
 
             dil_patched = tf.stack(dil_patched, axis = -1)
