@@ -668,7 +668,7 @@ class DilationP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(dilation2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding), axis = -1)
+                    res_filters.append(dilation2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -761,6 +761,7 @@ class ErosionP4(tf.keras.layers.Layer):
 
     def call(self, x):
 
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
 
         y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
 
@@ -768,7 +769,7 @@ class ErosionP4(tf.keras.layers.Layer):
 
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -778,7 +779,7 @@ class ErosionP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(erosion2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding), axis = -1)
+                    res_filters.append(erosion2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -874,9 +875,11 @@ class OpeningP4(tf.keras.layers.Layer):
 
         res_rota = []
 
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
+
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -915,7 +918,7 @@ class OpeningP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(dilation2d(y[:,j + k,..., i], kernel_rot[..., k, :,i],self.strides, self.padding))
+                    res_filters.append(dilation2d(ero[:,j + k,..., i], kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -1024,7 +1027,7 @@ class ClosingP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(dilation2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding), axis = -1)
+                    res_filters.append(dilation2d(y[:,j + k,...], kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -1040,11 +1043,11 @@ class ClosingP4(tf.keras.layers.Layer):
 
         res_rota = []
 
-        res_rota = []
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
 
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -1054,7 +1057,7 @@ class ClosingP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(erosion2d(y[:,j + k,..., i], kernel_rot[..., k, :,i],self.strides, self.padding))
+                    res_filters.append(erosion2d(dil[:,j + k,..., i], kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -1664,11 +1667,14 @@ class scalarMaxTimesPlusErosionP4(tf.keras.layers.Layer):
 
         y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
 
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0])
+
         res_rota = []
 
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -1678,14 +1684,14 @@ class scalarMaxTimesPlusErosionP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(erosion2d(tf.math.divide(y[:,j + k,...], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding), axis = -1)
+                    res_filters.append(erosion2d(tf.math.divide(y[:,j + k,...], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
                 res_SE_depth.append(res_filters)
 
             res_SE_depth = tf.stack(res_SE_depth, axis=-1)
-            res_SE_depth = tf.reduce_max(res_SE_depth, axis = -1)
+            res_SE_depth = tf.reduce_min(res_SE_depth, axis = -1)
             res_rota.append(res_SE_depth)
 
         output = tf.stack(res_rota, axis= 1)
@@ -1779,11 +1785,14 @@ class scalarMaxTimesPlusOpeningP4(tf.keras.layers.Layer):
 
         y = tf.concat([x[:,-1:, ...], x, x[:,0:1, ...]], axis = 1)
 
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0])
+
         res_rota = []
 
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -1793,14 +1802,14 @@ class scalarMaxTimesPlusOpeningP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(erosion2d(tf.math.divide(y[:,j + k,...], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding), axis = -1)
+                    res_filters.append(erosion2d(tf.math.divide(y[:,j + k,...], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
                 res_SE_depth.append(res_filters)
 
             res_SE_depth = tf.stack(res_SE_depth, axis=-1)
-            res_SE_depth = tf.reduce_max(res_SE_depth, axis = -1)
+            res_SE_depth = tf.reduce_min(res_SE_depth, axis = -1)
             res_rota.append(res_SE_depth)
 
         ero = tf.stack(res_rota, axis= 1)
@@ -1821,7 +1830,7 @@ class scalarMaxTimesPlusOpeningP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(dilation2d(tf.math.multiply(ero[:,j + k,...,i], self.timesKernel[k,:,i]), kernel_rot[..., k, :,i],self.strides, self.padding),)
+                    res_filters.append(dilation2d(tf.math.multiply(ero[:,j + k,...,i], self.timesKernel[k,:,i]), kernel_rot[..., k, :,i],self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
@@ -1950,11 +1959,14 @@ class scalarMaxTimesPlusClosingP4(tf.keras.layers.Layer):
 
         dil = tf.concat([dil[:,-1:, ...], dil, dil[:,0:1, ...]], axis = 1)
 
+        kernel_ero = tf.reverse(self.kernel, axis=[2])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0])
+
         res_rota = []
 
         for j in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = j, axes = (0,1) )
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = j, axes = (0,1) )
 
             res_SE_depth = []
 
@@ -1964,14 +1976,14 @@ class scalarMaxTimesPlusClosingP4(tf.keras.layers.Layer):
 
                 for i in range(self.num_filters):
 
-                    res_filters.append(erosion2d(tf.math.divide(dil[:,j + k,..., i], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], self.timesKernel[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding), axis = -1)
+                    res_filters.append(erosion2d(tf.math.divide(dil[:,j + k,..., i], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()), tf.divide(kernel_rot[..., k, :,i], timesKernel_ero[k,:,i] + tf.keras.backend.epsilon()),self.strides, self.padding))
 
                 res_filters = tf.stack(res_filters, axis=-1)
 
                 res_SE_depth.append(res_filters)
 
             res_SE_depth = tf.stack(res_SE_depth, axis=-1)
-            res_SE_depth = tf.reduce_max(res_SE_depth, axis = -1)
+            res_SE_depth = tf.reduce_min(res_SE_depth, axis = -1)
             res_rota.append(res_SE_depth)
 
         close_res = tf.stack(res_rota, axis= 1)
@@ -2166,6 +2178,10 @@ class MaxTimesPlusErosionLiftingP4(tf.keras.layers.Layer):
 
     def call(self, x):
 
+        # For duality, we take symmetic with respect to center of Structural Element.
+        kernel_ero = tf.experimental.numpy.rot90(self.kernel, k = 2, axes = (0,1))
+        timesKernel_ero = tf.experimental.numpy.rot90(self.timesKernel, k = 2, axes = (0,1))
+
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
         y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
@@ -2174,8 +2190,8 @@ class MaxTimesPlusErosionLiftingP4(tf.keras.layers.Layer):
         res = []
         for i in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
-            timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
 
             kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3]))
 
@@ -2267,6 +2283,9 @@ class MaxTimesPlusOpeningLiftingP4(tf.keras.layers.Layer):
 
     def call(self, x):
 
+        kernel_ero = tf.reverse(self.kernel, axis=[0,1])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0,1])
+
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1, 1, 1, 1), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
         y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
@@ -2278,11 +2297,20 @@ class MaxTimesPlusOpeningLiftingP4(tf.keras.layers.Layer):
             kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
             timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
 
+            kernel_ero_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_ero_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
+            
+
             kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3]))
 
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
 
-            ero_rot = tf.reduce_min(tf.divide(tf.add(y, -kernel_rot), timesKernel_rot + tf.keras.backend.epsilon()), axis = -3)
+            kernel_ero_rot = tf.reshape(kernel_ero_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3]))
+
+            timesKernel_ero_rot = tf.reshape(timesKernel_ero_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
+
+
+            ero_rot = tf.reduce_min(tf.divide(tf.add(y, -kernel_ero_rot), timesKernel_ero_rot + tf.keras.backend.epsilon()), axis = -3)
 
             ero_patched = []
 
@@ -2380,6 +2408,9 @@ class MaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
 
     def call(self, x):
 
+        kernel_ero = tf.reverse(self.kernel, axis=[0,1])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0,1])
+        
         y = tf.image.extract_patches(x, sizes=(1,) + self.kernel_size + (1,), strides = (1,) + self.strides + (1,), rates=(1,) + self.rates + (1,), padding=self.padding.upper())
             
         y = tf.reshape(y, shape = (-1, y.shape[1], y.shape[2], self.kernel_size[0]*self.kernel_size[1], x.shape[3]))
@@ -2391,9 +2422,16 @@ class MaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
             kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
             timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
 
+            kernel_ero_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_ero_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
+
             kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3]))
 
             timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
+
+            kernel_ero_rot = tf.reshape(kernel_ero_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3]))
+
+            timesKernel_ero_rot = tf.reshape(timesKernel_ero_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3]))
 
             dil_rot = tf.reduce_max(tf.add(tf.multiply(y, timesKernel_rot), kernel_rot), axis = -3)
 
@@ -2407,7 +2445,7 @@ class MaxTimesPlusClosingLiftingP4(tf.keras.layers.Layer):
 
             dil_patched = tf.stack(dil_patched, axis = -1)
 
-            res_rot = tf.divide(tf.add(dil_patched, -kernel_rot), timesKernel_rot + tf.keras.backend.epsilon())
+            res_rot = tf.divide(tf.add(dil_patched, -kernel_ero_rot), timesKernel_ero_rot + tf.keras.backend.epsilon())
             res.append(tf.reduce_sum(tf.reduce_min(res_rot, axis = -3), axis = -2))
         
         output = tf.stack(res, axis = 1)
@@ -2608,11 +2646,17 @@ class MaxTimesPlusErosionP4(tf.keras.layers.Layer):
 
         y = tf.transpose(y, perm = [0, 2, 3, 4, 1, 5, 6])
 
+        kernel_ero = tf.reverse(self.kernel, axis=[0,1])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0,1])
+
+        kernel_ero = tf.reverse(kernel_ero, axis=[2])
+        timesKernel_ero = tf.reverse(timesKernel_ero, axis=[2])
+
         res = []
         for i in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
-            timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
 
             kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3], self.timesKernel.shape[4]))
 
@@ -2713,17 +2757,23 @@ class MaxTimesPlusOpeningP4(tf.keras.layers.Layer):
 
         y = tf.transpose(y, perm = [0, 2, 3, 4, 1, 5, 6])
 
+        kernel_ero = tf.reverse(self.kernel, axis=[0,1])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0,1])
+
+        kernel_ero = tf.reverse(kernel_ero, axis=[2])
+        timesKernel_ero = tf.reverse(timesKernel_ero, axis=[2])
+
         res = []
         for i in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
-            timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
+            kernel_ero_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_ero_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
+            
+            kernel_ero_rot = tf.reshape(kernel_ero_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3], self.kernel.shape[4]))
 
-            kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3], self.timesKernel.shape[4]))
+            timesKernel_ero_rot = tf.reshape(timesKernel_ero_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3], self.timesKernel.shape[4]))
 
-            timesKernel_rot = tf.reshape(timesKernel_rot, (self.timesKernel.shape[0]*self.timesKernel.shape[1], self.timesKernel.shape[2], self.timesKernel.shape[3], self.timesKernel.shape[4]))
-
-            res_rot = tf.divide(tf.add(y[...,i:i+3,:,:], -kernel_rot), timesKernel_rot + tf.keras.backend.epsilon())
+            res_rot = tf.divide(tf.add(y[...,i:i+3,:,:], -kernel_ero_rot), timesKernel_ero_rot + tf.keras.backend.epsilon())
             res.append(tf.reduce_min(res_rot, axis = (-4, -3)))
         
         ero = tf.stack(res, axis = 1)
@@ -2734,7 +2784,7 @@ class MaxTimesPlusOpeningP4(tf.keras.layers.Layer):
             
             ero_patch = tf.extract_volume_patches(ero[...,j], ksizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,), padding=self.padding.upper())
             
-            ero_patch = tf.reshape(ero_patch, shape = (-1, ero_patch.shape[1], ero_patch.shape[2], ero_patch.shape[3], self.kernel_size[0]*self.kernel_size[1], ero_patch.shape[4]))
+            ero_patch = tf.reshape(ero_patch, shape = (-1, ero_patch.shape[1], ero_patch.shape[2], ero_patch.shape[3], self.kernel_size[0]*self.kernel_size[1], x.shape[4]))
             
             ero_patches.append(ero_patch)
 
@@ -2847,6 +2897,12 @@ class MaxTimesPlusClosingP4(tf.keras.layers.Layer):
 
         y = tf.transpose(y, perm = [0, 2, 3, 4, 1, 5, 6])
 
+        kernel_ero = tf.reverse(self.kernel, axis=[0,1])
+        timesKernel_ero = tf.reverse(self.timesKernel, axis=[0,1])
+
+        kernel_ero = tf.reverse(kernel_ero, axis=[2])
+        timesKernel_ero = tf.reverse(timesKernel_ero, axis=[2])
+
         res = []
         for i in range(4):
 
@@ -2869,7 +2925,7 @@ class MaxTimesPlusClosingP4(tf.keras.layers.Layer):
             
             dil_patch = tf.extract_volume_patches(dil[...,j], ksizes=(1, 1) + self.kernel_size + (1,), strides = (1, 1) + self.strides + (1,), padding=self.padding.upper())
             
-            dil_patch = tf.reshape(dil_patch, shape = (-1, dil_patch.shape[1], dil_patch.shape[2], dil_patch.shape[3], self.kernel_size[0]*self.kernel_size[1], dil_patch.shape[4]))
+            dil_patch = tf.reshape(dil_patch, shape = (-1, dil_patch.shape[1], dil_patch.shape[2], dil_patch.shape[3], self.kernel_size[0]*self.kernel_size[1], x.shape[4]))
             
             dil_patches.append(dil_patch)
 
@@ -2880,8 +2936,8 @@ class MaxTimesPlusClosingP4(tf.keras.layers.Layer):
         res = []
         for i in range(4):
 
-            kernel_rot = tf.experimental.numpy.rot90(self.kernel, k = i, axes = (0,1))
-            timesKernel_rot = tf.experimental.numpy.rot90(self.timesKernel, k = i, axes = (0,1))
+            kernel_rot = tf.experimental.numpy.rot90(kernel_ero, k = i, axes = (0,1))
+            timesKernel_rot = tf.experimental.numpy.rot90(timesKernel_ero, k = i, axes = (0,1))
 
             kernel_rot = tf.reshape(kernel_rot, (self.kernel.shape[0]*self.kernel.shape[1], self.kernel.shape[2], self.kernel.shape[3], self.timesKernel.shape[4]))
 
